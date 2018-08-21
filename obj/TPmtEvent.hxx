@@ -47,7 +47,7 @@ class TPmtEvent: public TNamed {
     std::vector<Double_t> qsum;
     Int_t  nhits;
 		std::vector<TPmtHit>  hit;
-		ClassDef(TPmtEvent,8)
+		ClassDef(TPmtEvent,9)
 };
 #endif
 

@@ -132,7 +132,7 @@ public :
    void ADCFilter(int iB, int iC);
    void qualitySummary();
    Double_t getPromptTime();
-   Double_t getPromptTimeToRF();
+   Double_t getPromptTimeToRF(Double_t *tboard);
    Double_t getTimeToRF();
 
 
@@ -209,6 +209,7 @@ public :
 
    TH1D* hTPrompt;
    TH1D* hTPromptEvent;
+   TH1D* hTPromptBoard[NPMT];
    TDirectory *promptDir;
    TDirectory *histDir;
    TDirectory *trigTimeDir;

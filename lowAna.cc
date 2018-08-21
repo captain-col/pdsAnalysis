@@ -104,6 +104,10 @@ lowAna::lowAna(Int_t maxLoop, Int_t firstEntry)
 
 
   for(UInt_t ib=0; ib<NB; ++ib) {
+
+    hTPromptBoard[ib] = new TH1D(Form("TPromptBoard%i",ib)," peak of charge weighted pulse times, single event",2*MAXSAMPLES,-MAXSAMPLES,MAXSAMPLES);
+    hTPromptBoard[ib]->SetXTitle(Form(" prompt peak (sample time) board %i ",ib));
+
     for(UInt_t ic=0; ic<NC; ++ic) {
       int ipmt = toPmtNumber(ib,ic);
       if(ipmt<0) continue;
@@ -487,16 +491,21 @@ UInt_t lowAna::Loop(UInt_t nToLoop,UInt_t firstEntry)
     } // board loop 
     /*** after filling hits, get prompt time ****/
     pmtEvent->tPrompt = getPromptTime();//ysun
-    pmtEvent->tPromptToRF = getPromptTimeToRF();//ysun
+    Double_t tboard[NPMT];
+    pmtEvent->tPromptToRF = getPromptTimeToRF(tboard);//ysun
     Double_t promptt=pmtEvent->tPromptToRF*4.0;//in ns
     Double_t tof=pmtEvent->tPromptToRF*4.0-GAMMAPEAK+L/clight;//in ns 
     pmtSummary->tof.push_back(tof);//in ns
     pmtSummary->trigTime0.push_back(pmtEvent->trigTime[0]);//in ns
     pmtSummary->trigTime1.push_back(pmtEvent->trigTime[1]);//in ns
     pmtSummary->trigTime2.push_back(pmtEvent->trigTime[2]);//in ns
+    pmtSummary->vprompt1.push_back( tboard[0]*4.0-GAMMAPEAK+L/clight);
+    pmtSummary->vprompt2.push_back( tboard[1]*4.0-GAMMAPEAK+L/clight);
+    pmtSummary->vprompt3.push_back( tboard[2]*4.0-GAMMAPEAK+L/clight);
     double tpromptNs = pmtEvent->tPrompt*4.0;
-    double ke=-9999;
-    if(pmtEvent->tPrompt!=-9999 && pmtEvent->trigType==TPmtEvent::TRIG111 && tof>0){
+    double ke=-9;
+    //if(pmtEvent->tPrompt!=-9999 && pmtEvent->trigType==TPmtEvent::TRIG111 && tof>0){
+    if(tof>0){
       double beta = L/tof/clight;
       double gamma2 = 1./(1.-beta*beta);
       if(gamma2>0) ke = nmass*(sqrt(gamma2)-1.0);
@@ -1006,29 +1015,40 @@ Int_t lowAna::Cut(Long64_t entry)
   // returns -1 otherwise.
   return 1;
 }
-Double_t lowAna::getPromptTimeToRF()
+
+Double_t lowAna::getPromptTimeToRF(Double_t *tboard )
 {
   // fill histogram to find peak bin in event.
   hTPromptEvent->Reset();
- std::vector<Int_t> rft;
-
-
- for(unsigned ihit=0; ihit< pmtEvent->hit.size(); ++ihit) {//ysun
-   if(pmtEvent->hit[ihit].ipmt<7) rft = pmtEvent->rft21;//ysun
-   else if(pmtEvent->hit[ihit].ipmt>=7 && pmtEvent->hit[ihit].ipmt<14) rft = pmtEvent->rft22;//ysun
-   else if(pmtEvent->hit[ihit].ipmt>=14 && pmtEvent->hit[ihit].ipmt<21) rft = pmtEvent->rft23;//ysun
-   if(rft.size()>0){
-     for (int i=0;i<pmtEvent->hit[ihit].nsamples;i++) {//ysun
-       hTPromptEvent->Fill(pmtEvent->hit[ihit].tsample[i]-rft[0],pmtEvent->hit[ihit].qsample[i]);//ysun
-     }//ysun
-   }
- }//ysun
- //return Double_t(hTPromptEvent->GetMaximumBin())-pmtEvent->tRFave; //ysun
- if(hTPromptEvent->GetEntries()>0) return Double_t(hTPromptEvent->GetMaximumBin()-MAXSAMPLES); //ysun
- else return -9999;//ysun
+  for(int ib=0; ib<NB; ++ib) { 
+    hTPromptBoard[ib]->Reset();  tboard[ib]=-9E-9; 
+  }
+  std::vector<Int_t> rft;
+  Int_t iboard=0,ichannel=0;
+  for(unsigned ihit=0; ihit< pmtEvent->hit.size(); ++ihit) {//ysun
+    fromPmtNumber( pmtEvent->hit[ihit].ipmt , iboard, ichannel);
+    if(pmtEvent->hit[ihit].ipmt<7) rft = pmtEvent->rft21;//ysun
+    else if(pmtEvent->hit[ihit].ipmt>=7 && pmtEvent->hit[ihit].ipmt<14) rft = pmtEvent->rft22;//ysun
+    else if(pmtEvent->hit[ihit].ipmt>=14 && pmtEvent->hit[ihit].ipmt<21) rft = pmtEvent->rft23;//ysun
+    if(rft.size()>0){
+      for (int i=0;i<pmtEvent->hit[ihit].nsamples;i++) {//ysun
+        hTPromptEvent->Fill(pmtEvent->hit[ihit].tsample[i]-rft[0],pmtEvent->hit[ihit].qsample[i]);//ysun
+        hTPromptBoard[iboard]->Fill(pmtEvent->hit[ihit].tsample[i]-rft[0],pmtEvent->hit[ihit].qsample[i]);//ysun
+      }//ysun
+    }
+  }//ysun
+  //return Double_t(hTPromptEvent->GetMaximumBin())-pmtEvent->tRFave; //ysun
+  for(int ib=0; ib<NB; ++ib) {
+    if( hTPromptBoard[ib]->GetEntries()>0) tboard[ib]= Double_t(hTPromptBoard[ib]->GetMaximumBin()-MAXSAMPLES);
+  }
+  //for(int ib=0; ib<NB; ++ib) printf(" %i tboard %f \n",ib,tboard[ib]);
+  Double_t promptTime = -9E-9;
+  if(hTPromptEvent->GetEntries()>0) promptTime =Double_t(hTPromptEvent->GetMaximumBin()-MAXSAMPLES); //ysun
+  //if(promptTime<0&&promptTime!=-9E-9) printf(" promptTime %E %E %E , %E\n",tboard[0],tboard[1],tboard[2],promptTime);
+  return promptTime;//ysun
 }
 
-
+//
 Double_t lowAna::getPromptTime()
 {
   // fill histogram to find peak bin in event.
