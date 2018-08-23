@@ -203,7 +203,23 @@ int PDSrestructure(){
                unsigned int          nSamples;
                unsigned int          nData;
 
+                TBranch        *b_event_number;   //!
+                TBranch        *b_computer_secIntoEpoch;   //!
+                TBranch        *b_computer_nsIntoSec;   //!
+                TBranch        *b_gps_nsIntoSec;   //!
+                TBranch        *b_gps_secIntoDay;   //!
+                TBranch        *b_gps_daysIntoYear;   //!
+                TBranch        *b_gps_Year;   //!
+                TBranch        *b_gps_ctrlFlag;   //!
+                TBranch        *b_digitizer_size;   //!
+                TBranch        *b_digitizer_chMask;   //!
+                TBranch        *b_digitizer_evNum;   //!
+                TBranch        *b_digitizer_time;   //!
                 TBranch        *b_digitizer_waveforms;   //!
+                TBranch        *b_nDigitizers;   //!
+                TBranch        *b_nChannels;   //!
+                TBranch        *b_nSamples;   //!
+                TBranch        *b_nData;   //!
 
                 
                 pmtTree->SetBranchAddress("event_number", &event_number, &b_event_number);
