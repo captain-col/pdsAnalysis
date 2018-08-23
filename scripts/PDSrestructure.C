@@ -11,13 +11,12 @@
 #include <fstream>
 #include <complex>
 #include <valarray>
-
+#include <deque>
 
 #include "TSystemFile.h"
 #include "TSystemDirectory.h"
 #include "TList.h"
 #include "TString.h"
-
 
 #include <TMath.h>
 #include <TNtuple.h>
@@ -30,6 +29,42 @@
 #include "TTree.h"
 #include "TBranch.h"
 #include "TObject.h"
+#include "TSystem.h"
+
+typedef std::deque< std::pair<unsigned int, unsigned int> > timeDeque;
+
+// Keep track of the previous digitizer times and look for any exact
+// duplicates.  This returns the global_event number of a duplicate is found,
+// otherwise, it returns -1. The times are 31 bits, so the possiblility of a
+// random overlap is *very* small.
+int checkDeque(timeDeque& deq,
+               unsigned int global_event,
+               unsigned int digitizer_time) {
+
+    // Check the current look-back buffer for a duplicated time.  If one is
+    // found, then save the global event number for later.
+    int result = -1;
+    for (timeDeque::iterator c = deq.begin();
+         c != deq.end();
+         ++c) {
+        if (c->second == digitizer_time) {
+            result = c->first;
+            break;
+        }
+    }
+
+    // Push the current event into the look-back buffer.
+    deq.push_front(std::make_pair(global_event, digitizer_time));
+
+    // Pop an old event off of the look-back buffer.  Control the number of
+    // entries to check for a duplicate time.  This should be edited to change
+    // how far back in time the times are checked.
+    if (deq.size() > 3000) deq.pop_back();
+
+    // Return the global event number of the most recent event with a matching
+    // time.  A negative value is returned if there isn't a match.
+    return result;
+};
 
 int PDSrestructure(){
     
@@ -58,9 +93,12 @@ int PDSrestructure(){
     unsigned int          digitizer_evNum_two_g;
     unsigned int          digitizer_evNum_three_g;
     unsigned int          digitizer_time_one_g;
-    unsigned int         digitizer_time_two_g;
-    unsigned int         digitizer_time_three_g;
-    unsigned short       digitizer_waveforms_one_g[NC][MAXSAMPLES];
+    unsigned int          digitizer_time_two_g;
+    unsigned int          digitizer_time_three_g;
+    int                   digitizer_dup_one_g;
+    int                   digitizer_dup_two_g;
+    int                   digitizer_dup_three_g;
+    unsigned short        digitizer_waveforms_one_g[NC][MAXSAMPLES];
     unsigned short        digitizer_waveforms_two_g[NC][MAXSAMPLES];
     unsigned short         digitizer_waveforms_three_g[NC][MAXSAMPLES];
     unsigned int          nDigitizers_g;
@@ -84,9 +122,8 @@ int PDSrestructure(){
     digit_one->Branch("digitizer_chMask",&digitizer_chMask_one_g,"digitizer_chMask_one_g[8]/i");
     digit_one->Branch("digitizer_evNum",&digitizer_evNum_one_g);
     digit_one->Branch("digitizer_time",&digitizer_time_one_g);
-    
+    digit_one->Branch("digitizer_duplicate",&digitizer_dup_one_g);
     digit_one->Branch("digitizer_waveforms",&digitizer_waveforms_one_g,"digitizer_waveforms_one_g[8][2100]/s");
-    
     digit_one->Branch("nDigitizers",&nDigitizers_g);
     digit_one->Branch("nChannels",&nChannels_g);
     digit_one->Branch("nSamples",&nSamples_g);
@@ -101,7 +138,8 @@ int PDSrestructure(){
     digit_two->Branch("digitizer_chMask",&digitizer_chMask_two_g,"digitizer_chMask_two_g[8]/i");
     digit_two->Branch("digitizer_evNum",&digitizer_evNum_two_g);
     digit_two->Branch("digitizer_time",&digitizer_time_two_g);
-   digit_two->Branch("digitizer_waveforms",&digitizer_waveforms_two_g,"digitizer_waveforms_two_g[8][2100]/s");
+    digit_two->Branch("digitizer_duplicate",&digitizer_dup_two_g);
+    digit_two->Branch("digitizer_waveforms",&digitizer_waveforms_two_g,"digitizer_waveforms_two_g[8][2100]/s");
     digit_two->Branch("nDigitizers",&nDigitizers_g);
     digit_two->Branch("nChannels",&nChannels_g);
     digit_two->Branch("nSamples",&nSamples_g);
@@ -115,12 +153,17 @@ int PDSrestructure(){
     digit_three->Branch("digitizer_chMask",&digitizer_chMask_three_g,"digitizer_chMask_three_g[8]/i");
     digit_three->Branch("digitizer_evNum",&digitizer_evNum_three_g);
     digit_three->Branch("digitizer_time",&digitizer_time_three_g);
-   digit_three->Branch("digitizer_waveforms",&digitizer_waveforms_three_g,"digitizer_waveforms_three_g[8][2100]/s");
+    digit_three->Branch("digitizer_duplicate",&digitizer_dup_three_g);
+    digit_three->Branch("digitizer_waveforms",&digitizer_waveforms_three_g,"digitizer_waveforms_three_g[8][2100]/s");
     digit_three->Branch("nDigitizers",&nDigitizers_g);
     digit_three->Branch("nChannels",&nChannels_g);
     digit_three->Branch("nSamples",&nSamples_g);
     digit_three->Branch("nData",&nData_g);
     
+    timeDeque d1Deque;
+    timeDeque d2Deque;
+    timeDeque d3Deque;
+
     const char *dirname = "/Users/sergey/Desktop/PDS/PDS_beamtime_lowintensity_runs/";
     const char *ext = ".root";
     int totalEnrty=0;
@@ -218,6 +261,16 @@ int PDSrestructure(){
                     digitizer_time_one_g    =     digitizer_time[0];
                     digitizer_time_two_g    =    digitizer_time[1];
                     digitizer_time_three_g    =     digitizer_time[2];
+
+                    digitizer_dup_one_g = checkDeque(d1Deque,
+                                                     event_number_g,
+                                                     digitizer_time_one_g);
+                    digitizer_dup_two_g = checkDeque(d2Deque,
+                                                     event_number_g,
+                                                     digitizer_time_two_g);
+                    digitizer_dup_three_g = checkDeque(d3Deque,
+                                                       event_number_g,
+                                                       digitizer_time_three_g);
                     
                     nDigitizers_g =          nDigitizers;
                     nDigitizers_g =          nChannels;
@@ -226,10 +279,11 @@ int PDSrestructure(){
                     digit_one->Fill();
                     digit_two->Fill();
                     digit_three->Fill();
-                   /*     event_number_g=0;
-                              computer_secIntoEpoch_g=0;
+#ifdef COMMENTED_STUFF
+                    event_number_g=0;
+                    computer_secIntoEpoch_g=0;
                     computer_nsIntoSec_g=0;
-                  gps_nsIntoSec_g=0;
+                    gps_nsIntoSec_g=0;
                     gps_secIntoDay_g=0;
                     gps_daysIntoYear_g=0;
                     gps_Year_g=0;
@@ -238,14 +292,14 @@ int PDSrestructure(){
                     digitizer_size_two_g=0;
                     digitizer_size_three_g=0;
                     std::fill_n(digitizer_chMask_one_g,NC,-999);
-                  std::fill_n(digitizer_chMask_two_g,NC,-999);
-                  std::fill_n(digitizer_chMask_three_g,NC,-999);
+                    std::fill_n(digitizer_chMask_two_g,NC,-999);
+                    std::fill_n(digitizer_chMask_three_g,NC,-999);
                     digitizer_evNum_one_g=0;
-                              digitizer_evNum_two_g=0;
-                              digitizer_evNum_three_g=0;
-                              digitizer_time_one_g=0;
-                             digitizer_time_two_g=0;
-                             digitizer_time_three_g=0;
+                    digitizer_evNum_two_g=0;
+                    digitizer_evNum_three_g=0;
+                    digitizer_time_one_g=0;
+                    digitizer_time_two_g=0;
+                    digitizer_time_three_g=0;
                     
                     for(int j=0;j<NC;++j){
                         for(int k=0;k<MAXSAMPLES;++k){
@@ -256,10 +310,11 @@ int PDSrestructure(){
                     }
                     
                     
-                              nDigitizers_g=0;
-                              nChannels_g=0;
-                              nSamples_g=0;
-                              nData_g=0;*/
+                    nDigitizers_g=0;
+                    nChannels_g=0;
+                    nSamples_g=0;
+                    nData_g=0;
+#endif
                 }
                 delete pmtTree;
                 delete Tfile;
