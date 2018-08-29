@@ -395,9 +395,9 @@ int PDSfindhits(){
     
     TTree *digit_three_new = new TTree("digitizer3","third digitizer data");
     
-    FindHits(digit_one,digit_one_new,1);
-    FindHits(digit_two,digit_two_new,2);
-    FindHits(digit_three,digit_three_new,3);
+    FindHits(digit_one,digit_one_new,0);
+    FindHits(digit_two,digit_two_new,1);
+    FindHits(digit_three,digit_three_new,2);
     
     
     
