@@ -86,6 +86,7 @@ void FindHits(TTree* input,TTree* output,int digitN){
     std::vector<double> pmtCharge;
     std::vector<int> pmtTimeStart;
     std::vector<int> pmtTimeStop;
+    std::vector<int> pmtTimePeak;
     
 
     unsigned short RF_ADC[2100];
@@ -112,6 +113,7 @@ void FindHits(TTree* input,TTree* output,int digitN){
     output->Branch("hit_charge",&pmtCharge);
     output->Branch("hit_timeStart",&pmtTimeStart);
     output->Branch("hit_timeStop",&pmtTimeStop);
+    output->Branch("hit_timePeak",&pmtTimePeak);
     
     
     output->Branch("RF_waveform",&RF_ADC,"RF_ADC[2100]/i");
@@ -176,9 +178,8 @@ void FindHits(TTree* input,TTree* output,int digitN){
     std::cout<<entry1<<std::endl;
     int n=1000;
     for(int i=0;i<383454;++i){
-       // if(i<383454)continue;
-        if(i%100==0)
-        std::cout<<i<<std::endl;
+       // 383454 is end of low int
+        //total number of entries is 446141
         input->GetEntry(i);
         event_number_g_c=event_number_g;
         file_name_c=(*file_name);
@@ -233,6 +234,7 @@ void FindHits(TTree* input,TTree* output,int digitN){
                 pmtCharge.push_back(charge);
                 pmtTimeStart.push_back(start);
                 pmtTimeStop.push_back(stop);
+                pmtTimePeak.push_back(closepeaks[0].first);
 
                 for(std::size_t k=1;k<closepeaks.size();++k){
                     
@@ -248,6 +250,7 @@ void FindHits(TTree* input,TTree* output,int digitN){
                             pmtCharge.push_back(charge);
                             pmtTimeStart.push_back(start);
                             pmtTimeStop.push_back(stop);
+                            pmtTimePeak.push_back(closepeaks[k].first);
    
                             }
                         if(dt>2){
@@ -262,6 +265,7 @@ void FindHits(TTree* input,TTree* output,int digitN){
                             pmtCharge.push_back(charge);
                             pmtTimeStart.push_back(start);
                             pmtTimeStop.push_back(stop);
+                            pmtTimePeak.push_back(closepeaks[k].first);
 
                             
                         }
@@ -277,6 +281,7 @@ void FindHits(TTree* input,TTree* output,int digitN){
                             pmtCharge.push_back(charge);
                             pmtTimeStart.push_back(start);
                             pmtTimeStop.push_back(stop);
+                            pmtTimePeak.push_back(closepeaks[k].first);
 
                             }
                         if(dt>2){
@@ -291,6 +296,7 @@ void FindHits(TTree* input,TTree* output,int digitN){
                             pmtCharge.push_back(charge);
                             pmtTimeStart.push_back(start);
                             pmtTimeStop.push_back(stop);
+                            pmtTimePeak.push_back(closepeaks[k].first);
 
                             
                         }
@@ -305,6 +311,7 @@ void FindHits(TTree* input,TTree* output,int digitN){
                 pmtCharge.push_back(charge);
                 pmtTimeStart.push_back(start);
                 pmtTimeStop.push_back(stop);
+                pmtTimePeak.push_back(closepeaks[0].first);
 
             }
             closepeaks.clear();
@@ -352,13 +359,7 @@ void FindHits(TTree* input,TTree* output,int digitN){
             RF_timeStart.push_back(-1);
             RF_timeStop.push_back(-1);
         }
-        for(std::size_t l=0;l<pmtCharge.size();++l){
-            if(pmtCharge[l]<0 && pmtNum[l]==6){
-                std::cout<<pmtCharge[l]<<std::endl;
-                std::cout<<"i="<<i<<" ;pmt="<<pmtNum[l]<<" ;digit="<<digitN<<std::endl;
-                std::cout<<"start="<<pmtTimeStart[l]<<" ;stop="<<pmtTimeStop[l]<<std::endl;
-            }
-        }
+
         
         output->Fill();
         RF_timeStart.clear();
@@ -367,6 +368,7 @@ void FindHits(TTree* input,TTree* output,int digitN){
         pmtCharge.clear();
         pmtTimeStart.clear();
         pmtTimeStop.clear();
+        pmtTimePeak.clear();
         
         
     }
