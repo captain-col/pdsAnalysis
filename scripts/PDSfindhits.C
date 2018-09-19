@@ -116,7 +116,7 @@ void FindHits(TTree* input,TTree* output,int digitN){
     output->Branch("hit_timePeak",&pmtTimePeak);
     
     
-    output->Branch("RF_waveform",&RF_ADC,"RF_ADC[2100]/i");
+    output->Branch("RF_waveform",&RF_ADC,"RF_ADC[2100]/s");
     output->Branch("RF_timeStart",&RF_timeStart);
     output->Branch("RF_timeStop",&RF_timeStop);
 
@@ -177,15 +177,22 @@ void FindHits(TTree* input,TTree* output,int digitN){
     int entry1=input->GetEntries();
     std::cout<<entry1<<std::endl;
     int n=1000;
-    for(int i=0;i<383454;++i){
-       // 383454 is end of low int
-        //total number of entries is 446141
+    
+    for(int i=0;i<entry1;++i){
+        //Do only Low intensity
+        if(digitN==0){if(i>383452)continue;}
+        if(digitN==1){if(i>383456)continue;}
+        if(digitN==2){if(i>383463)continue;}
+        
+        if(i%100==0)
+        std::cout<<i<<std::endl;
         input->GetEntry(i);
         event_number_g_c=event_number_g;
         file_name_c=(*file_name);
        computer_secIntoEpoch_g_c= computer_secIntoEpoch_g;
         computer_nsIntoSec_g_c=computer_nsIntoSec_g;
         digitizer_time_one_g_c=digitizer_time_one_g;
+        digitizer_dup_one_g_c=digitizer_dup_one_g;
         
         for(int pmt=0;pmt<7;++pmt){
         double mean=0;
@@ -206,6 +213,7 @@ void FindHits(TTree* input,TTree* output,int digitN){
         
         std::vector<double> wf ;
         for(int k=0;k<MAXSAMPLES;++k){
+            //std::cout<<"k="<<k<<" ;wf="<<digitizer_waveforms_one_g[pmt][k]<<std::endl;
             wf.push_back((double)digitizer_waveforms_one_g[pmt][k]);
         }
             
@@ -312,7 +320,10 @@ void FindHits(TTree* input,TTree* output,int digitN){
                 pmtTimeStart.push_back(start);
                 pmtTimeStop.push_back(stop);
                 pmtTimePeak.push_back(closepeaks[0].first);
-
+               /* std::cout<<i<<std::endl;
+                std::cout<<"charge="<<charge<<std::endl;
+                std::cout<<"peakID="<<closepeaks[0].first<<" ;peakH="<<closepeaks[0].second<<" ;local="<<local<<" ;wf="<<digitizer_waveforms_one_g[pmt][start]<<std::endl;
+                std::cout<<"start="<<start<<" ;stop="<<stop<<" ;pmt="<<pmt<<std::endl;*/
             }
             closepeaks.clear();
             
@@ -325,26 +336,30 @@ void FindHits(TTree* input,TTree* output,int digitN){
             RF_ADC[k]=digitizer_waveforms_one_g[pmt][k];
         }
         double mean =0;
+        double skips=0;
         for(int k=0;k<MAXSAMPLES;++k){
+            if((double)digitizer_waveforms_one_g[pmt][k]>10000){skips++;continue;}
             mean+=(double)digitizer_waveforms_one_g[pmt][k];
         }
-        mean/=MAXSAMPLES;
+        mean/=(MAXSAMPLES-skips);
         double rms=0;
         for(int k=0;k<MAXSAMPLES;++k){
+            if((double)digitizer_waveforms_one_g[pmt][k]>10000){continue;}
             rms+=pow((double)digitizer_waveforms_one_g[pmt][k]-mean,2);
         }
-        rms=sqrt(rms/MAXSAMPLES);
+        rms=sqrt(rms/(MAXSAMPLES-skips));
         int rfStart=-1;
         int rfStop=-1;
         int shift=0;
         for(int k=0;k<MAXSAMPLES;++k){
+            if((double)digitizer_waveforms_one_g[pmt][k]>10000){continue;}
             double wf = (double)digitizer_waveforms_one_g[pmt][k]-mean;
-            if(wf<0 && fabs(wf)>3*rms){
+            if(wf<0 && wf<-500){
                 if(shift==0){rfStart=k;rfStop=-1;}
                 shift++;
                 
             }
-            if(shift>0 && fabs(wf)<3*rms){
+            if(shift>0 && wf > -500){
                 rfStop=k-1;
                 int rfL = rfStop-rfStart;
                 if(rfL>1){
@@ -359,8 +374,9 @@ void FindHits(TTree* input,TTree* output,int digitN){
             RF_timeStart.push_back(-1);
             RF_timeStop.push_back(-1);
         }
-
         
+        
+        if((int)RF_timeStart.size()<4)
         output->Fill();
         RF_timeStart.clear();
         RF_timeStop.clear();
@@ -402,7 +418,9 @@ int PDSfindhits(){
     
     
     f_new->Write();
+    
 
+ 
 
     return 0;
 }
