@@ -48,6 +48,7 @@ struct pmt_f{
 struct coinc_f{
     int peakdT=-9999;
     std::vector<int> peaks;
+    std::vector<double> charges;
     std::vector<int> dTs;
     std::set<int> coinсPMT;
     std::vector<int> coinсPMT_vect;
@@ -303,6 +304,7 @@ void findCoincidence(TTree* input1,TTree* input2,TTree* input3,TTree* output1,TT
     int aligned13_c;
     std::vector<int> coincNum;
     std::vector<int> coincPeakTime;
+    std::vector<double> coincCharge;
     std::vector<int> coincPMT;
     std::vector<int> coincdT;
     
@@ -326,6 +328,7 @@ void findCoincidence(TTree* input1,TTree* input2,TTree* input3,TTree* output1,TT
     output1->Branch("CoincPeakTime",&coincPeakTime);
     output1->Branch("CoincPMT",&coincPMT);
     output1->Branch("CoincdT",&coincdT);
+    output1->Branch("CoincCharge",&coincCharge);
 
     int entry1 = input1->GetEntries();
     int n=9;
@@ -371,7 +374,7 @@ void findCoincidence(TTree* input1,TTree* input2,TTree* input3,TTree* output1,TT
         }
 #define Coinc
 #ifdef Coinc
-        nHits->Fill((int)allpeaks.size());
+        
         if((int)allpeaks.size()==0)continue;
         std::sort(allpeaks.begin(),allpeaks.end(),[](peak_f l, peak_f r){
             int tl=l.dT;
@@ -400,12 +403,15 @@ void findCoincidence(TTree* input1,TTree* input2,TTree* input3,TTree* output1,TT
                         coinс->peaks.push_back(allpeaks[k].peakTime);
                         coinс->coinсPMT.insert(pmtj);
                         coinс->coinсPMT.insert(pmtk);
+                        coinс->charges.push_back(allpeaks[j].charge);
+                        coinс->charges.push_back(allpeaks[k].charge);
                         coinс->coinсPMT_vect.push_back(pmtj);
                         coinс->coinсPMT_vect.push_back(pmtk);
                         coincidences.push_back(*coinс);
                     }else{
                         coincidences[num].dTs.push_back(tk);
                         coincidences[num].peaks.push_back(allpeaks[k].peakTime);
+                        coincidences[num].charges.push_back(allpeaks[k].charge);
                         coincidences[num].coinсPMT.insert(pmtj);
                         coincidences[num].coinсPMT.insert(pmtk);
                         coincidences[num].coinсPMT_vect.push_back(pmtk);
@@ -450,6 +456,7 @@ void findCoincidence(TTree* input1,TTree* input2,TTree* input3,TTree* output1,TT
                     coincPeakTime.push_back(coincidences[k].peaks[l]);
                     coincPMT.push_back(coincidences[k].coinсPMT_vect[l]);
                     coincdT.push_back(coincidences[k].dTs[l]);
+                    coincCharge.push_back(coincidences[k].charges[l]);
                 }
             }
             
@@ -460,6 +467,7 @@ void findCoincidence(TTree* input1,TTree* input2,TTree* input3,TTree* output1,TT
         coincPeakTime.clear();
         coincPMT.clear();
         coincdT.clear();
+        coincCharge.clear();
         pmtNum_c.clear();
         pmtCharge_c.clear();
         pmtTimeStart_c.clear();
