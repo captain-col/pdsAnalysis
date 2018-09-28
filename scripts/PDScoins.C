@@ -54,6 +54,101 @@ struct coinc_f{
     std::vector<int> coinсPMT_vect;
 };
 
+std::vector<coinc_f> coincSearch(std::vector<peak_f>& allpeaks, bool RFexist = true){
+    std::vector<coinc_f> coincidences;
+    if(RFexist){
+        std::sort(allpeaks.begin(),allpeaks.end(),[](peak_f l, peak_f r){
+            int tl=l.dT;
+            int tr=r.dT;
+            return tl<tr;
+        });
+        
+        for(std::size_t j=0;j<allpeaks.size();++j){
+            int tj=allpeaks[j].dT;
+            int pmtj=allpeaks[j].pmt;
+            for(std::size_t k=j+1;k<allpeaks.size();++k){
+                int pmtk=allpeaks[k].pmt;
+                if(pmtj==pmtk)continue;
+                int tk=allpeaks[k].dT;
+                if(fabs(tk-tj)<4){
+                    int num=-1;
+                    for(std::size_t c=0;c<coincidences.size();++c){
+                        if(fabs(tk-coincidences[c].dTs[0])<4){num=c;break;}
+                    }
+                    if(num==-1){
+                        std::shared_ptr<coinc_f> coinс(new coinc_f);
+                        coinс->dTs.push_back(allpeaks[j].dT);
+                        coinс->dTs.push_back(allpeaks[k].dT);
+                        coinс->peaks.push_back(allpeaks[j].peakTime);
+                        coinс->peaks.push_back(allpeaks[k].peakTime);
+                        coinс->charges.push_back(allpeaks[j].charge);
+                        coinс->charges.push_back(allpeaks[k].charge);
+                        coinс->coinсPMT.insert(pmtj);
+                        coinс->coinсPMT.insert(pmtk);
+                        coinс->coinсPMT_vect.push_back(pmtj);
+                        coinс->coinсPMT_vect.push_back(pmtk);
+                        coincidences.push_back(*coinс);
+                    }else{
+                        coincidences[num].dTs.push_back(allpeaks[k].dT);
+                        coincidences[num].charges.push_back(allpeaks[k].charge);
+                        coincidences[num].peaks.push_back(allpeaks[k].peakTime);
+                        coincidences[num].coinсPMT.insert(pmtj);
+                        coincidences[num].coinсPMT.insert(pmtk);
+                        coincidences[num].coinсPMT_vect.push_back(pmtk);
+                    }
+                    ++j;
+                }
+            }
+        }
+    }else{
+        std::sort(allpeaks.begin(),allpeaks.end(),[](peak_f l, peak_f r){
+            int tl=l.peakTime;
+            int tr=r.peakTime;
+            return tl<tr;
+        });
+        
+        for(std::size_t j=0;j<allpeaks.size();++j){
+            int tj=allpeaks[j].peakTime;
+            int pmtj=allpeaks[j].pmt;
+            for(std::size_t k=j+1;k<allpeaks.size();++k){
+                int pmtk=allpeaks[k].pmt;
+                if(pmtj==pmtk)continue;
+                int tk=allpeaks[k].peakTime;
+                if(fabs(tk-tj)<4){
+                    int num=-1;
+                    for(std::size_t c=0;c<coincidences.size();++c){
+                        if(fabs(tk-coincidences[c].peaks[0])<4){num=c;break;}
+                    }
+                    if(num==-1){
+                        std::shared_ptr<coinc_f> coinс(new coinc_f);
+                        coinс->dTs.push_back(allpeaks[j].dT);
+                        coinс->dTs.push_back(allpeaks[k].dT);
+                        coinс->peaks.push_back(allpeaks[j].peakTime);
+                        coinс->peaks.push_back(allpeaks[k].peakTime);
+                        coinс->charges.push_back(allpeaks[j].charge);
+                        coinс->charges.push_back(allpeaks[k].charge);
+                        coinс->coinсPMT.insert(pmtj);
+                        coinс->coinсPMT.insert(pmtk);
+                        coinс->coinсPMT_vect.push_back(pmtj);
+                        coinс->coinсPMT_vect.push_back(pmtk);
+                        coincidences.push_back(*coinс);
+                    }else{
+                        coincidences[num].dTs.push_back(allpeaks[k].dT);
+                        coincidences[num].charges.push_back(allpeaks[k].charge);
+                        coincidences[num].peaks.push_back(allpeaks[k].peakTime);
+                        coincidences[num].coinсPMT.insert(pmtj);
+                        coincidences[num].coinсPMT.insert(pmtk);
+                        coincidences[num].coinсPMT_vect.push_back(pmtk);
+                    }
+                    ++j;
+                }
+            }
+        }
+    }
+    
+    return coincidences;
+}
+
 
 
 void copyTree(TTree* input1, TTree* output,int digitN){
@@ -335,7 +430,7 @@ void findCoincidence(TTree* input1,TTree* input2,TTree* input3,TTree* output1,TT
     for(int i=0;i<entry1;++i){
         input1->GetEntry(i);
 
-        if(aligned12_g1!=-1 && aligned13_g1!=-1 && (*RF_timeStart1)[0]!=-1){
+        if(aligned12_g1!=-1 && aligned13_g1!=-1){
         if(i%100==0)
         std::cout<<i<<std::endl;
         input2->GetEntry(aligned12_g1);
@@ -346,7 +441,11 @@ void findCoincidence(TTree* input1,TTree* input2,TTree* input3,TTree* output1,TT
             std::shared_ptr<peak_f> peak(new peak_f);
             peak->peakTime=(*pmtTimePeak1)[pmt];
             peak->charge=(*pmtCharge1)[pmt];
-            peak->dT=(*pmtTimePeak1)[pmt]-(*RF_timeStart1)[0];
+            if((*RF_timeStart1)[0]!=-1){
+                peak->dT=(*pmtTimePeak1)[pmt]-(*RF_timeStart1)[0];
+            }else{
+                peak->dT=-9999;
+            }
             peak->pmt=(*pmtNum1)[pmt];
        
             allpeaks.push_back(*peak);
@@ -358,7 +457,12 @@ void findCoincidence(TTree* input1,TTree* input2,TTree* input3,TTree* output1,TT
             std::shared_ptr<peak_f> peak(new peak_f);
             peak->peakTime=(*pmtTimePeak2)[pmt];
             peak->charge=(*pmtCharge2)[pmt];
-            peak->dT=(*pmtTimePeak2)[pmt]-(*RF_timeStart2)[0];
+            if((*RF_timeStart2)[0]!=-1){
+                peak->dT=(*pmtTimePeak2)[pmt]-(*RF_timeStart2)[0];
+            }else{
+                peak->dT=-9999;
+            }
+            
             peak->pmt=(*pmtNum2)[pmt]+7;
             allpeaks.push_back(*peak);
         }
@@ -367,63 +471,21 @@ void findCoincidence(TTree* input1,TTree* input2,TTree* input3,TTree* output1,TT
             std::shared_ptr<peak_f> peak(new peak_f);
             peak->peakTime=(*pmtTimePeak3)[pmt];
             peak->charge=(*pmtCharge3)[pmt];
-            peak->dT=(*pmtTimePeak3)[pmt]-(*RF_timeStart3)[0];
+            if((*RF_timeStart3)[0]!=-1){
+                peak->dT=(*pmtTimePeak3)[pmt]-(*RF_timeStart3)[0];
+            }else{
+                peak->dT=-9999;
+            }
             peak->pmt=(*pmtNum3)[pmt]+7+7;
             allpeaks.push_back(*peak);
 
         }
-#define Coinc
-#ifdef Coinc
-        
+            
+            bool RFexist=true;
+            if((*RF_timeStart1)[0]==-1)RFexist=false;
             if((int)allpeaks.size()>0){
-        std::sort(allpeaks.begin(),allpeaks.end(),[](peak_f l, peak_f r){
-            int tl=l.dT;
-            int tr=r.dT;
-            return tl<tr;
-        });
+            std::vector<coinc_f> coincidences=coincSearch(allpeaks,RFexist);
 
-        std::vector<coinc_f> coincidences;
-        for(std::size_t j=0;j<allpeaks.size();++j){
-            int tj=allpeaks[j].dT;
-            int pmtj=allpeaks[j].pmt;
-            for(std::size_t k=j+1;k<allpeaks.size();++k){
-                int pmtk=allpeaks[k].pmt;
-                if(pmtj==pmtk)continue;
-                int tk=allpeaks[k].dT;
-                if(fabs(tk-tj)<4){
-                    int num=-1;
-                    for(std::size_t c=0;c<coincidences.size();++c){
-                        if(fabs(tk-coincidences[c].dTs[0])<4){num=c;break;}
-                    }
-                    if(num==-1){
-                        std::shared_ptr<coinc_f> coinс(new coinc_f);
-                        coinс->dTs.push_back(tj);
-                        coinс->dTs.push_back(tk);
-                        coinс->peaks.push_back(allpeaks[j].peakTime);
-                        coinс->peaks.push_back(allpeaks[k].peakTime);
-                        coinс->coinсPMT.insert(pmtj);
-                        coinс->coinсPMT.insert(pmtk);
-                        coinс->charges.push_back(allpeaks[j].charge);
-                        coinс->charges.push_back(allpeaks[k].charge);
-                        coinс->coinсPMT_vect.push_back(pmtj);
-                        coinс->coinсPMT_vect.push_back(pmtk);
-                        coincidences.push_back(*coinс);
-                    }else{
-                        coincidences[num].dTs.push_back(tk);
-                        coincidences[num].peaks.push_back(allpeaks[k].peakTime);
-                        coincidences[num].charges.push_back(allpeaks[k].charge);
-                        coincidences[num].coinсPMT.insert(pmtj);
-                        coincidences[num].coinсPMT.insert(pmtk);
-                        coincidences[num].coinсPMT_vect.push_back(pmtk);
-                    }
-                    ++j;
-                }
-            }
-        }
-        
-        
-#endif
-        
             
             for(std::size_t k=0;k<coincidences.size();++k){
                 for(std::size_t l=0;l<coincidences[k].peaks.size();++l){
@@ -450,8 +512,6 @@ void findCoincidence(TTree* input1,TTree* input2,TTree* input3,TTree* output1,TT
             coincPMT.push_back(-9999);
             coincdT.push_back(-9999);
             coincCharge.push_back(-9999);
-            
-
         }
     
         
